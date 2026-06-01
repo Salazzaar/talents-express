@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Cliente | Talents Express</title>
+  <link rel="stylesheet" href="../css/global.css">
+  <style>
+    .hero-welcome { background:var(--gradient-card); border:1px solid var(--border); border-radius:var(--radius-lg); padding:2rem; margin-bottom:2rem; display:flex; align-items:center; gap:1.5rem; position:relative; overflow:hidden; }
+    .hero-welcome::after { content:'⚡'; position:absolute; right:2rem; bottom:-1rem; font-size:6rem; opacity:0.05; }
+    .welcome-text h2 { font-family:'Outfit',sans-serif; font-size:1.6rem; font-weight:800; margin-bottom:0.25rem; }
+    .welcome-text p { color:var(--text-secondary); }
+    .quick-actions { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:1rem; margin-bottom:2rem; }
+    .quick-action { background:var(--gradient-card); border:1px solid var(--border); border-radius:var(--radius); padding:1.25rem; text-align:center; text-decoration:none; transition:var(--transition); cursor:pointer; }
+    .quick-action:hover { border-color:var(--primary); transform:translateY(-4px); box-shadow:var(--shadow-glow); }
+    .quick-action .qa-icon { font-size:2rem; margin-bottom:0.5rem; }
+    .quick-action .qa-label { font-weight:600; font-size:0.9rem; color:var(--text-primary); }
+    .quick-action .qa-desc  { font-size:0.78rem; color:var(--text-muted); margin-top:0.2rem; }
+    .recent-section h3 { font-family:'Outfit',sans-serif; font-size:1.1rem; font-weight:700; margin-bottom:1rem; }
+    .pedido-item { display:flex; align-items:center; gap:1rem; padding:1rem; background:var(--bg-card2); border-radius:var(--radius-sm); margin-bottom:0.75rem; border:1px solid var(--border); transition:var(--transition); }
+    .pedido-item:hover { border-color:rgba(108,61,232,0.4); }
+    .pedido-info { flex:1; min-width:0; }
+    .pedido-name { font-weight:600; font-size:0.925rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .pedido-meta { font-size:0.78rem; color:var(--text-muted); margin-top:0.15rem; }
+  </style>
+</head>
+<body>
+  <nav class="navbar" id="main-nav"></nav>
+  <div class="container page-content">
+
+    <div class="hero-welcome">
+      <div class="avatar avatar-lg" id="dash-avatar">JD</div>
+      <div class="welcome-text">
+        <h2>Olá, <span id="dash-nome">Usuário</span>! 👋</h2>
+        <p>O que você precisa hoje? Encontre o profissional ideal em Barueri.</p>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:1rem;margin-bottom:2rem" id="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon">📦</div>
+        <div class="stat-info"><h3 id="stat-pedidos">0</h3><p>Pedidos</p></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">✅</div>
+        <div class="stat-info"><h3 id="stat-concluidos">0</h3><p>Concluídos</p></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">⭐</div>
+        <div class="stat-info"><h3 id="stat-aval">—</h3><p>Avaliações</p></div>
+      </div>
+    </div>
+
+    <div class="quick-actions">
+      <a href="busca.html" class="quick-action">
+        <div class="qa-icon">🔍</div>
+        <div class="qa-label">Buscar Serviço</div>
+        <div class="qa-desc">Encontre profissionais</div>
+      </a>
+      <a href="meus-pedidos.html" class="quick-action">
+        <div class="qa-icon">📋</div>
+        <div class="qa-label">Meus Pedidos</div>
+        <div class="qa-desc">Acompanhe solicitações</div>
+      </a>
+      <a href="avaliacao-checkout.html" class="quick-action">
+        <div class="qa-icon">⭐</div>
+        <div class="qa-label">Avaliar Serviço</div>
+        <div class="qa-desc">Dê seu feedback</div>
+      </a>
+      <a href="login.html" class="quick-action" onclick="Auth.clear()">
+        <div class="qa-icon">🚪</div>
+        <div class="qa-label">Sair</div>
+        <div class="qa-desc">Encerrar sessão</div>
+      </a>
+    </div>
+
+    <div class="recent-section">
+      <h3>Pedidos Recentes</h3>
+      <div id="pedidos-recentes">
+        <div class="pedido-item"><div class="skeleton" style="width:40px;height:40px;border-radius:50%"></div><div class="pedido-info"><div class="skeleton" style="height:14px;width:60%;margin-bottom:6px"></div><div class="skeleton" style="height:11px;width:40%"></div></div></div>
+        <div class="pedido-item"><div class="skeleton" style="width:40px;height:40px;border-radius:50%"></div><div class="pedido-info"><div class="skeleton" style="height:14px;width:60%;margin-bottom:6px"></div><div class="skeleton" style="height:11px;width:40%"></div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/api.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      Auth.requireLogin('login.html');
+      const user = Auth.get();
+      if (user?.perfil === 'PRESTADOR') { window.location.href = 'dashboard-prestador.html'; return; }
+      UI.renderNavbar('dashboard-cliente.html');
+      document.getElementById('dash-nome').textContent = user?.nome?.split(' ')[0] || 'Usuário';
+      document.getElementById('dash-avatar').textContent = UI.initials(user?.nome || 'JD');
+
+      let pedidos = [];
+      try {
+        const raw = await SolicitacaoAPI.listarCliente();
+        // Normaliza campos da API (dataHoraAgendada→dataHora, endereco→local, prestador obj→string)
+        pedidos = raw.map(p => ({
+          id:        p.id,
+          status:    p.status,
+          prestador: typeof p.prestador === 'object' ? (p.prestador?.nome || '?') : (p.prestador || '?'),
+          servico:   p.servico?.titulo || p.servico || p.descricao || 'Serviço solicitado',
+          dataHora:  p.dataHoraAgendada || p.dataHora,
+          local:     p.endereco || p.local || '',
+          valor:     p.valor || p.servico?.precoHora || 0,
+        }));
+      } catch { pedidos = [
+        { id: 1, servico: 'Instalação Elétrica', prestador: 'Carlos Oliveira', dataHora: '2026-05-20T14:00:00', status: 'PENDENTE', valor: 120 },
+        { id: 2, servico: 'Aulas de Matemática', prestador: 'Maria Santos',    dataHora: '2026-05-18T09:00:00', status: 'CONCLUIDO', valor: 80 },
+      ]; }
+
+      document.getElementById('stat-pedidos').textContent = pedidos.length;
+      document.getElementById('stat-concluidos').textContent = pedidos.filter(p => p.status === 'CONCLUIDO').length;
+
+      const el = document.getElementById('pedidos-recentes');
+      el.innerHTML = pedidos.slice(0,5).map(p => `
+        <div class="pedido-item">
+          <div class="avatar">${UI.initials(p.prestador || p.servico)}</div>
+          <div class="pedido-info">
+            <div class="pedido-name">${p.servico}</div>
+            <div class="pedido-meta">${p.prestador || ''} · ${UI.formatDate(p.dataHora)}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:0.75rem">
+            <span style="font-weight:700;color:var(--primary-light)">R$ ${p.valor}</span>
+            ${UI.getStatusBadge(p.status)}
+          </div>
+        </div>`).join('') || '<p style="color:var(--text-muted);padding:1rem">Nenhum pedido ainda.</p>';
+    });
+  </script>
+</body>
+</html>

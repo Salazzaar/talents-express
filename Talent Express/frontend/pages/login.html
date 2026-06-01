@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Entrar | Talents Express</title>
+  <meta name="description" content="Acesse a plataforma Talents Express e conecte-se com os melhores profissionais de Barueri.">
+  <link rel="stylesheet" href="../css/global.css">
+  <style>
+    body { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 1rem; }
+    .auth-container { width: 100%; max-width: 480px; }
+    .auth-logo { text-align: center; margin-bottom: 2rem; }
+    .auth-logo .logo-big {
+      width: 72px; height: 72px; border-radius: 20px;
+      background: var(--gradient-main);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 2rem; margin: 0 auto 1rem;
+      box-shadow: 0 8px 32px rgba(108,61,232,0.5);
+    }
+    .auth-logo h1 {
+      font-family: 'Outfit', sans-serif; font-size: 1.8rem; font-weight: 800;
+      background: var(--gradient-main); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .auth-logo p { color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.25rem; }
+    .auth-card { background: var(--gradient-card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 2rem; box-shadow: var(--shadow-glow); }
+    .perfil-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1.25rem; }
+    .perfil-btn {
+      padding: 1rem; border-radius: var(--radius-sm); border: 1.5px solid var(--border);
+      background: transparent; color: var(--text-secondary); cursor: pointer;
+      transition: var(--transition); text-align: center; font-family: 'Inter', sans-serif;
+    }
+    .perfil-btn .icon { font-size: 1.6rem; display: block; margin-bottom: 0.35rem; }
+    .perfil-btn span { font-size: 0.85rem; font-weight: 600; display: block; }
+    .perfil-btn small { font-size: 0.75rem; color: var(--text-muted); }
+    .perfil-btn.selected { border-color: var(--primary); background: rgba(108,61,232,0.15); color: var(--text-primary); }
+    .perfil-btn:hover { border-color: var(--primary-light); }
+    .age-warning {
+      display: none; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3);
+      border-radius: var(--radius-sm); padding: 0.75rem 1rem; margin-bottom: 1rem;
+      color: #F87171; font-size: 0.85rem; font-weight: 500;
+    }
+    .age-warning.show { display: flex; align-items: center; gap: 0.5rem; }
+    .footer-link { text-align: center; margin-top: 1.25rem; color: var(--text-secondary); font-size: 0.875rem; }
+    .footer-link a { color: var(--primary-light); text-decoration: none; font-weight: 600; }
+    .footer-link a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="auth-container">
+    <div class="auth-logo">
+      <div class="logo-big">⚡</div>
+      <h1>Talents Express</h1>
+      <p>Serviços sob demanda em Barueri</p>
+    </div>
+
+    <div class="auth-card">
+      <div class="tabs">
+        <button class="tab-btn active" id="tab-login" onclick="switchTab('login')">Entrar</button>
+        <button class="tab-btn" id="tab-cadastro" onclick="switchTab('cadastro')">Cadastrar</button>
+      </div>
+
+      <!-- LOGIN -->
+      <div class="tab-content active" id="content-login">
+        <div class="alert alert-danger" id="login-error"></div>
+        <form id="form-login" onsubmit="handleLogin(event)">
+          <div class="form-group">
+            <label class="form-label" for="login-email">E-mail</label>
+            <input class="form-control" id="login-email" type="email" placeholder="seu@email.com" required autocomplete="email">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="login-senha">Senha</label>
+            <input class="form-control" id="login-senha" type="password" placeholder="••••••••" required autocomplete="current-password">
+          </div>
+          <button class="btn btn-primary" type="submit" id="btn-login" style="width:100%;margin-top:0.5rem">
+            <span id="btn-login-text">Entrar na Plataforma</span>
+          </button>
+        </form>
+        <div class="divider">ou acesse com demo</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+          <button class="btn btn-outline btn-sm" onclick="demoLogin('cliente')">👤 Demo Cliente</button>
+          <button class="btn btn-outline btn-sm" onclick="demoLogin('prestador')">🔧 Demo Prestador</button>
+        </div>
+      </div>
+
+      <!-- CADASTRO -->
+      <div class="tab-content" id="content-cadastro">
+        <div class="alert alert-danger" id="cadastro-error"></div>
+        <div class="alert alert-success" id="cadastro-success"></div>
+        <form id="form-cadastro" onsubmit="handleCadastro(event)">
+          <div class="form-group">
+            <label class="form-label">Você é:</label>
+            <div class="perfil-selector">
+              <button type="button" class="perfil-btn" id="btn-cliente" onclick="selectPerfil('CLIENTE')">
+                <span class="icon">👤</span>
+                <span>Cliente</span>
+                <small>Busco serviços</small>
+              </button>
+              <button type="button" class="perfil-btn" id="btn-prestador" onclick="selectPerfil('PRESTADOR')">
+                <span class="icon">🔧</span>
+                <span>Prestador</span>
+                <small>Ofereço serviços</small>
+              </button>
+            </div>
+            <input type="hidden" id="cad-perfil" required>
+            <div class="form-error show" id="perfil-error" style="display:none">Selecione um perfil.</div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="cad-nome">Nome Completo</label>
+            <input class="form-control" id="cad-nome" type="text" placeholder="Seu nome completo" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="cad-email">E-mail</label>
+            <input class="form-control" id="cad-email" type="email" placeholder="seu@email.com" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="cad-cpf">CPF / CNPJ</label>
+            <input class="form-control" id="cad-cpf" type="text" placeholder="000.000.000-00" required maxlength="18" oninput="maskDocument(this)">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="cad-nascimento">Data de Nascimento</label>
+            <input class="form-control" id="cad-nascimento" type="date" required onchange="checkAge(this)">
+            <div class="age-warning" id="age-warning">⛔ RN01: Prestadores devem ter 18 anos ou mais.</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="cad-telefone">Telefone</label>
+            <input class="form-control" id="cad-telefone" type="tel" placeholder="(11) 99999-9999" maxlength="15" oninput="maskPhone(this)">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="cad-bairro">Bairro de Atuação</label>
+            <select class="form-control" id="cad-bairro">
+              <option value="">Selecione seu bairro</option>
+              <option value="Alphaville">Alphaville</option>
+              <option value="Barueri Centro">Barueri Centro</option>
+              <option value="Tamboré">Tamboré</option>
+              <option value="Aldeia da Serra">Aldeia da Serra</option>
+              <option value="Outro">Outro</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="cad-senha">Senha</label>
+            <input class="form-control" id="cad-senha" type="password" placeholder="Mínimo 8 caracteres" required minlength="8">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="cad-senha2">Confirmar Senha</label>
+            <input class="form-control" id="cad-senha2" type="password" placeholder="Repita a senha" required>
+            <div class="form-error" id="senha-error">As senhas não coincidem.</div>
+          </div>
+          <button class="btn btn-primary" type="submit" id="btn-cadastro" style="width:100%;margin-top:0.5rem">
+            Criar Conta Grátis
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <p style="text-align:center;margin-top:1.5rem;color:var(--text-muted);font-size:0.78rem">
+      Ao entrar, você concorda com os <a href="#" style="color:var(--primary-light)">Termos de Uso</a> e a <a href="#" style="color:var(--primary-light)">Política de Privacidade</a>
+    </p>
+  </div>
+
+  <script src="../js/api.js"></script>
+  <script>
+    // Redirect if already logged
+    if (Auth.isLogged()) {
+      window.location.href = Auth.isPrestador() ? 'dashboard-prestador.html' : 'dashboard-cliente.html';
+    }
+
+    let perfilSelecionado = '';
+
+    function switchTab(tab) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      document.getElementById(`tab-${tab}`).classList.add('active');
+      document.getElementById(`content-${tab}`).classList.add('active');
+    }
+
+    function selectPerfil(perfil) {
+      perfilSelecionado = perfil;
+      document.getElementById('cad-perfil').value = perfil;
+      document.getElementById('btn-cliente').classList.toggle('selected', perfil === 'CLIENTE');
+      document.getElementById('btn-prestador').classList.toggle('selected', perfil === 'PRESTADOR');
+      checkAge(document.getElementById('cad-nascimento'));
+    }
+
+    function checkAge(input) {
+      // RN01: Bloqueia prestador menor de 18 anos
+      if (!input.value || perfilSelecionado !== 'PRESTADOR') {
+        document.getElementById('age-warning').classList.remove('show');
+        return true;
+      }
+      const nascimento = new Date(input.value);
+      const hoje = new Date();
+      let idade = hoje.getFullYear() - nascimento.getFullYear();
+      const m = hoje.getMonth() - nascimento.getMonth();
+      if (m < 0 || (m === 0 && hoje.getDate() < nascimento.getDate())) idade--;
+      const menor = idade < 18;
+      document.getElementById('age-warning').classList.toggle('show', menor);
+      return !menor;
+    }
+
+    function maskDocument(el) {
+      let v = el.value.replace(/\D/g, '');
+      if (v.length <= 11) {
+        v = v.replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+      } else {
+        v = v.replace(/^(\d{2})(\d)/, '$1.$2').replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+             .replace(/\.(\d{3})(\d)/, '.$1/$2').replace(/(\d{4})(\d)/, '$1-$2');
+      }
+      el.value = v;
+    }
+
+    function maskPhone(el) {
+      let v = el.value.replace(/\D/g, '');
+      v = v.replace(/^(\d{2})(\d)/g, '($1) $2').replace(/(\d{5})(\d)/, '$1-$2');
+      el.value = v;
+    }
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      const btn = document.getElementById('btn-login');
+      const errEl = document.getElementById('login-error');
+      errEl.classList.remove('show');
+      btn.disabled = true;
+      btn.innerHTML = '<div class="spinner"></div>';
+      try {
+        const result = await AuthAPI.login({
+          email: document.getElementById('login-email').value,
+          senha: document.getElementById('login-senha').value
+        });
+        Auth.save(result);
+        UI.toast('Login realizado com sucesso!', 'success');
+        setTimeout(() => {
+          window.location.href = result.perfil === 'PRESTADOR' ? 'dashboard-prestador.html' : 'dashboard-cliente.html';
+        }, 600);
+      } catch (err) {
+        errEl.textContent = err.message;
+        errEl.classList.add('show');
+        btn.disabled = false;
+        btn.innerHTML = 'Entrar na Plataforma';
+      }
+    }
+
+    async function handleCadastro(e) {
+      e.preventDefault();
+      const errEl = document.getElementById('cadastro-error');
+      const okEl  = document.getElementById('cadastro-success');
+      errEl.classList.remove('show'); okEl.classList.remove('show');
+
+      // Validações frontend
+      if (!perfilSelecionado) {
+        errEl.textContent = 'Selecione um perfil (Cliente ou Prestador).';
+        errEl.classList.add('show'); return;
+      }
+      if (!checkAge(document.getElementById('cad-nascimento'))) {
+        errEl.textContent = 'RN01: Prestadores devem ter 18 anos ou mais.';
+        errEl.classList.add('show'); return;
+      }
+      const s1 = document.getElementById('cad-senha').value;
+      const s2 = document.getElementById('cad-senha2').value;
+      if (s1 !== s2) {
+        document.getElementById('senha-error').classList.add('show');
+        errEl.textContent = 'As senhas não coincidem.';
+        errEl.classList.add('show'); return;
+      }
+      document.getElementById('senha-error').classList.remove('show');
+
+      const btn = document.getElementById('btn-cadastro');
+      btn.disabled = true;
+      btn.innerHTML = '<div class="spinner"></div> Criando conta...';
+      try {
+        await AuthAPI.register({
+          nome: document.getElementById('cad-nome').value,
+          email: document.getElementById('cad-email').value,
+          cpfCnpj: document.getElementById('cad-cpf').value,
+          dataNascimento: document.getElementById('cad-nascimento').value,
+          telefone: document.getElementById('cad-telefone').value,
+          bairro: document.getElementById('cad-bairro').value || null,
+          senha: s1,
+          perfil: perfilSelecionado
+        });
+        okEl.textContent = '✅ Conta criada! Faça login para continuar.';
+        okEl.classList.add('show');
+        document.getElementById('form-cadastro').reset();
+        perfilSelecionado = '';
+        document.getElementById('btn-cliente').classList.remove('selected');
+        document.getElementById('btn-prestador').classList.remove('selected');
+        setTimeout(() => switchTab('login'), 2000);
+      } catch (err) {
+        errEl.textContent = err.message;
+        errEl.classList.add('show');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'Criar Conta Grátis';
+      }
+    }
+
+    function demoLogin(perfil) {
+      // Simula login para demonstração sem backend
+      const users = {
+        cliente:   { id: 1, nome: 'João Demo Cliente',   email: 'cliente@demo.com',   perfil: 'CLIENTE',   token: 'mock-token-cliente' },
+        prestador: { id: 2, nome: 'Maria Demo Prestador', email: 'prestador@demo.com', perfil: 'PRESTADOR', token: 'mock-token-prestador' }
+      };
+      Auth.save(users[perfil]);
+      UI.toast(`Modo demo: ${perfil}`, 'info');
+      setTimeout(() => {
+        window.location.href = perfil === 'prestador' ? 'dashboard-prestador.html' : 'dashboard-cliente.html';
+      }, 600);
+    }
+  </script>
+</body>
+</html>

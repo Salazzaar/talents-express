@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Buscar Serviços | Talents Express</title>
+  <meta name="description" content="Encontre o melhor prestador de serviços em Barueri. Filtre por categoria, localização e avaliação.">
+  <link rel="stylesheet" href="../css/global.css">
+  <style>
+    .search-hero {
+      background: var(--gradient-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 2rem;
+      margin-bottom: 2rem;
+    }
+    .search-hero h2 { font-family:'Outfit',sans-serif; font-size:1.5rem; font-weight:700; margin-bottom:0.25rem; }
+    .search-hero p  { color:var(--text-secondary); margin-bottom:1.5rem; }
+    .filters-bar { display:grid; grid-template-columns:2fr 1fr 1fr auto; gap:1rem; align-items:end; }
+    .search-input-wrap { position:relative; }
+    .search-input-wrap .search-icon {
+      position:absolute; left:1rem; top:50%; transform:translateY(-50%);
+      color:var(--text-muted); pointer-events:none; font-size:1.1rem;
+    }
+    .search-input-wrap .form-control { padding-left:2.75rem; }
+
+    .results-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem; }
+    .results-header h3 { font-size:1rem; font-weight:600; color:var(--text-secondary); }
+    .sort-select { background:var(--bg-card2); border:1px solid var(--border); border-radius:8px; color:var(--text-primary); padding:0.4rem 0.75rem; font-size:0.85rem; cursor:pointer; }
+
+    .provider-card {
+      background:var(--gradient-card); border:1px solid var(--border);
+      border-radius:var(--radius); padding:1.5rem; transition:var(--transition);
+      cursor:pointer; position:relative; overflow:hidden;
+    }
+    .provider-card:hover { border-color:rgba(108,61,232,0.5); transform:translateY(-4px); box-shadow:var(--shadow-glow); }
+    .provider-card::before {
+      content:''; position:absolute; top:0; left:0; right:0; height:3px;
+      background:var(--gradient-main); opacity:0; transition:var(--transition);
+    }
+    .provider-card:hover::before { opacity:1; }
+
+    .provider-header { display:flex; align-items:flex-start; gap:1rem; margin-bottom:1rem; }
+    .provider-info { flex:1; min-width:0; }
+    .provider-name { font-weight:700; font-size:1.05rem; margin-bottom:0.2rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .provider-service { color:var(--text-secondary); font-size:0.875rem; margin-bottom:0.4rem; }
+    .rating-row { display:flex; align-items:center; gap:0.5rem; }
+    .rating-num { font-weight:700; font-size:0.95rem; color:#FBBF24; }
+    .rating-count { color:var(--text-muted); font-size:0.78rem; }
+    .provider-meta { display:flex; flex-wrap:wrap; gap:0.5rem; margin-bottom:1rem; }
+    .provider-footer { display:flex; align-items:center; justify-content:space-between; border-top:1px solid var(--border); padding-top:1rem; }
+    .price { font-family:'Outfit',sans-serif; font-size:1.2rem; font-weight:800; background:var(--gradient-main); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+    .price small { font-size:0.7rem; -webkit-text-fill-color:var(--text-muted); }
+    .unavailable-overlay {
+      position:absolute; inset:0; background:rgba(13,11,30,0.6);
+      display:flex; align-items:center; justify-content:center;
+      border-radius:var(--radius); font-weight:700; color:var(--text-muted);
+    }
+    .matching-badge {
+      position:absolute; top:1rem; right:1rem;
+      background:rgba(16,185,129,0.2); border:1px solid rgba(16,185,129,0.4);
+      border-radius:50px; padding:0.2rem 0.65rem;
+      font-size:0.7rem; font-weight:700; color:#34D399;
+    }
+    .empty-state { text-align:center; padding:4rem 2rem; color:var(--text-muted); }
+    .empty-state .icon { font-size:3.5rem; margin-bottom:1rem; }
+    .empty-state h3 { font-size:1.1rem; margin-bottom:0.5rem; color:var(--text-secondary); }
+    .matching-loader {
+      display:none; text-align:center; padding:3rem;
+      color:var(--text-secondary); flex-direction:column; align-items:center; gap:1rem;
+    }
+    .matching-loader.show { display:flex; }
+    .pulse-ring {
+      width:60px; height:60px; border-radius:50%;
+      background:var(--gradient-main);
+      animation:pulse 1.2s ease-in-out infinite;
+      display:flex; align-items:center; justify-content:center; font-size:1.5rem;
+    }
+
+    /* MODAL SOLICITAÇÃO */
+    .slot-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(100px,1fr)); gap:0.5rem; margin-top:0.5rem; }
+    .slot-btn {
+      padding:0.5rem; border-radius:8px; border:1.5px solid var(--border);
+      background:transparent; color:var(--text-secondary); font-size:0.82rem;
+      cursor:pointer; transition:var(--transition); text-align:center;
+    }
+    .slot-btn:hover, .slot-btn.selected { border-color:var(--primary); background:rgba(108,61,232,0.15); color:var(--text-primary); }
+
+    @media(max-width:768px) { .filters-bar { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <nav class="navbar" id="main-nav"></nav>
+
+  <div class="container page-content">
+    <!-- SEARCH HERO -->
+    <div class="search-hero">
+      <h2>🔍 Encontre seu Profissional</h2>
+      <p>Matching inteligente com os melhores prestadores de Barueri</p>
+      <div class="filters-bar">
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Buscar</label>
+          <div class="search-input-wrap">
+            <span class="search-icon">🔍</span>
+            <input class="form-control" id="filter-texto" type="text" placeholder="Ex: eletricista, diarista, professor...">
+          </div>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Categoria</label>
+          <select class="form-control" id="filter-categoria">
+            <option value="">Todas</option>
+            <option value="BRACAL">&#128296; Braçal</option>
+            <option value="INTELECTUAL">&#129504; Intelectual</option>
+            <option value="ARTISTICO">&#127912; Artístico</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Bairro</label>
+          <select class="form-control" id="filter-bairro">
+            <option value="">Todos</option>
+            <option value="Alphaville">Alphaville</option>
+            <option value="Barueri Centro">Barueri Centro</option>
+            <option value="Tamboré">Tamboré</option>
+            <option value="Aldeia da Serra">Aldeia da Serra</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label class="form-label">&nbsp;</label>
+          <button class="btn btn-primary" id="btn-buscar" onclick="buscar()">Buscar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MATCHING LOADING -->
+    <div class="matching-loader" id="matching-loader">
+      <div class="pulse-ring">⚡</div>
+      <div>
+        <strong style="color:var(--primary-light)">Matching Engine em ação...</strong>
+        <p style="font-size:0.85rem;margin-top:0.25rem">Calculando melhor compatibilidade e proximidade</p>
+      </div>
+    </div>
+
+    <!-- RESULTS -->
+    <div id="results-section" style="display:none">
+      <div class="results-header">
+        <h3 id="results-count">0 profissionais encontrados</h3>
+        <select class="sort-select" id="sort-select" onchange="renderResults()">
+          <option value="avaliacao">Melhor avaliação</option>
+          <option value="preco-asc">Menor preço</option>
+          <option value="preco-desc">Maior preço</option>
+        </select>
+      </div>
+      <div class="grid-auto" id="results-grid"></div>
+    </div>
+
+    <!-- EMPTY -->
+    <div class="empty-state" id="empty-state" style="display:none">
+      <div class="icon">🔎</div>
+      <h3>Nenhum profissional encontrado</h3>
+      <p>Tente ajustar os filtros ou buscar em outra categoria.</p>
+    </div>
+
+    <!-- INITIAL STATE -->
+    <div class="empty-state" id="initial-state">
+      <div class="icon">⚡</div>
+      <h3>Busque seu profissional ideal</h3>
+      <p>Use os filtros acima para encontrar prestadores disponíveis em Barueri</p>
+      <button class="btn btn-primary" style="margin-top:1rem" onclick="buscar()">Ver todos os profissionais</button>
+    </div>
+  </div>
+
+  <!-- MODAL SOLICITAÇÃO -->
+  <div class="modal-overlay" id="modal-solicitar">
+    <div class="modal" style="max-width:560px">
+      <div class="modal-header">
+        <h3>📅 Solicitar Serviço</h3>
+        <button class="modal-close" onclick="UI.modal.close('modal-solicitar')">✕</button>
+      </div>
+      <div id="modal-prestador-info" style="display:flex;gap:1rem;align-items:center;margin-bottom:1.5rem;padding:1rem;background:var(--bg-card2);border-radius:var(--radius-sm)">
+        <div class="avatar avatar-lg" id="modal-avatar"></div>
+        <div>
+          <div id="modal-nome" style="font-weight:700;font-size:1.05rem"></div>
+          <div id="modal-servico" style="color:var(--text-secondary);font-size:0.875rem"></div>
+          <div id="modal-preco" style="font-weight:700;color:var(--primary-light);margin-top:0.25rem"></div>
+        </div>
+      </div>
+      <div class="alert alert-danger" id="modal-error"></div>
+      <form id="form-solicitar" onsubmit="confirmarSolicitacao(event)">
+        <div class="form-group">
+          <label class="form-label">Descrição do serviço</label>
+          <textarea class="form-control" id="sol-descricao" rows="3" placeholder="Descreva o que precisa ser feito..." required></textarea>
+        </div>
+        <div class="grid-2">
+          <div class="form-group">
+            <label class="form-label">Data</label>
+            <input class="form-control" id="sol-data" type="date" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Horário</label>
+            <select class="form-control" id="sol-horario" required>
+              <option value="">Selecione</option>
+              <option value="08:00">08:00</option>
+              <option value="09:00">09:00</option>
+              <option value="10:00">10:00</option>
+              <option value="13:00">13:00</option>
+              <option value="14:00">14:00</option>
+              <option value="15:00">15:00</option>
+              <option value="16:00">16:00</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Endereço</label>
+          <input class="form-control" id="sol-endereco" type="text" placeholder="Rua, número, bairro" required>
+        </div>
+        <input type="hidden" id="sol-prestador-id">
+        <button class="btn btn-primary" type="submit" id="btn-confirmar-sol" style="width:100%;margin-top:0.5rem">
+          Confirmar Solicitação
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <script src="../js/api.js"></script>
+  <script>
+    let resultados = [];
+    let prestadorSelecionado = null;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      Auth.requireLogin('login.html');
+      UI.renderNavbar('busca.html');
+      // Data mínima = amanhã
+      const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+      document.getElementById('sol-data').min = tomorrow.toISOString().split('T')[0];
+    });
+
+    async function buscar() {
+      const textoRaw    = document.getElementById('filter-texto').value.trim();
+      const categoriaRaw = document.getElementById('filter-categoria').value;
+      const bairroRaw   = document.getElementById('filter-bairro').value;
+
+      // Remove parâmetros vazios para que o backend receba null (não string vazia)
+      // URLSearchParams envia "?categoria=" se vazio, o que quebra o IS NULL no JPQL
+      const texto    = textoRaw    || undefined;
+      const categoria = categoriaRaw || undefined;
+      const bairro   = bairroRaw   || undefined;
+
+      document.getElementById('initial-state').style.display = 'none';
+      document.getElementById('results-section').style.display = 'none';
+      document.getElementById('empty-state').style.display = 'none';
+      document.getElementById('matching-loader').classList.add('show');
+
+      // RNF01: Simula tempo de matching < 3 segundos
+      const t0 = Date.now();
+      try {
+        // Monta objeto só com params preenchidos (undefined é omitido pelo URLSearchParams)
+        const params = {};
+        if (texto)    params.texto    = texto;
+        if (categoria) params.categoria = categoriaRaw; // envia o valor do enum correto (ver api.js)
+        if (bairro)   params.bairro   = bairro;
+        const data = await ServicoAPI.buscar(params);
+        resultados = data;
+      } catch {
+        // Fallback para mock data
+        await new Promise(r => setTimeout(r, 900));
+        resultados = MOCK.prestadores.filter(p => {
+          const matchTexto = !texto || p.servico.toLowerCase().includes(texto.toLowerCase()) || p.nome.toLowerCase().includes(texto.toLowerCase());
+          const matchCat = !categoria || p.categoria === categoria;
+          const matchBairro = !bairro || p.bairro === bairro;
+          return matchTexto && matchCat && matchBairro && p.disponivel;
+        });
+      }
+
+      // Garantir < 3s (RNF01)
+      const elapsed = Date.now() - t0;
+      if (elapsed < 1200) await new Promise(r => setTimeout(r, 1200 - elapsed));
+
+      document.getElementById('matching-loader').classList.remove('show');
+      renderResults();
+    }
+
+    function renderResults() {
+      const sortBy = document.getElementById('sort-select').value;
+      let dados = [...resultados];
+
+      // Ordenação
+      if (sortBy === 'avaliacao')   dados.sort((a, b) => b.avaliacao - a.avaliacao);
+      if (sortBy === 'preco-asc')   dados.sort((a, b) => a.preco - b.preco);
+      if (sortBy === 'preco-desc')  dados.sort((a, b) => b.preco - a.preco);
+
+      if (dados.length === 0) {
+        document.getElementById('empty-state').style.display = 'block';
+        return;
+      }
+
+      document.getElementById('results-count').textContent = `${dados.length} profissional(is) encontrado(s)`;
+      document.getElementById('results-section').style.display = 'block';
+
+      const grid = document.getElementById('results-grid');
+      grid.innerHTML = dados.map((p, idx) => {
+        const stars = '★'.repeat(Math.round(p.avaliacao)) + '☆'.repeat(5 - Math.round(p.avaliacao));
+        // Suporta tanto os nomes do enum (BRACAL) quanto as descrições do MatchingEngine (Braçal)
+        const catClass = {
+          'Braçal': 'warning', 'BRACAL': 'warning',
+          'Intelectual': 'info', 'INTELECTUAL': 'info',
+          'Artístico': 'success', 'ARTISTICO': 'success'
+        }[p.categoria] || 'primary';
+        // Rótulo legível independente de qual forma vier da API
+        const catLabel = {
+          'BRACAL': 'Braçal', 'INTELECTUAL': 'Intelectual', 'ARTISTICO': 'Artístico'
+        }[p.categoria] || p.categoria;
+        const isTop = idx === 0 && sortBy === 'avaliacao';
+        return `
+        <div class="provider-card" onclick="abrirSolicitacao(${JSON.stringify(p).replace(/"/g,'&quot;')})">
+          ${isTop ? '<div class="matching-badge">🏆 Melhor Match</div>' : ''}
+          ${!p.disponivel ? '<div class="unavailable-overlay">⛔ Indisponível</div>' : ''}
+          <div class="provider-header">
+            <div class="avatar">${UI.initials(p.nome)}</div>
+            <div class="provider-info">
+              <div class="provider-name">${p.nome}</div>
+              <div class="provider-service">🔧 ${p.servico}</div>
+              <div class="rating-row">
+                <span style="color:#FBBF24;font-size:0.9rem">${stars}</span>
+                <span class="rating-num">${p.avaliacao}</span>
+                <span class="rating-count">(${p.avaliacoes} avaliações)</span>
+              </div>
+            </div>
+          </div>
+          <div class="provider-meta">
+            <span class="badge badge-${catClass}">${catLabel}</span>
+            <span class="badge badge-primary">📍 ${p.bairro}</span>
+          </div>
+          <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:1rem;line-height:1.5">${p.descricao}</p>
+          <div class="provider-footer">
+            <div class="price">R$ ${p.preco}<small>/h</small></div>
+            ${p.disponivel ? '<button class="btn btn-primary btn-sm">Solicitar</button>' : '<span class="badge badge-danger">Indisponível</span>'}
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    function abrirSolicitacao(prestador) {
+      if (!prestador.disponivel) { UI.toast('Este prestador está indisponível no momento.', 'warning'); return; }
+      prestadorSelecionado = prestador;
+      document.getElementById('modal-avatar').textContent = UI.initials(prestador.nome);
+      document.getElementById('modal-nome').textContent = prestador.nome;
+      document.getElementById('modal-servico').textContent = prestador.servico;
+      document.getElementById('modal-preco').textContent = `R$ ${prestador.preco}/h`;
+      // A API retorna 'prestadorId'; o mock usa 'id' como fallback
+      document.getElementById('sol-prestador-id').value = prestador.prestadorId || prestador.id;
+      document.getElementById('modal-error').classList.remove('show');
+      document.getElementById('form-solicitar').reset();
+      document.getElementById('sol-prestador-id').value = prestador.prestadorId || prestador.id;
+      UI.modal.open('modal-solicitar');
+    }
+
+    async function confirmarSolicitacao(e) {
+      e.preventDefault();
+      const errEl = document.getElementById('modal-error');
+      errEl.classList.remove('show');
+      const data    = document.getElementById('sol-data').value;
+      const horario = document.getElementById('sol-horario').value;
+      const btn = document.getElementById('btn-confirmar-sol');
+      btn.disabled = true; btn.innerHTML = '<div class="spinner"></div> Enviando...';
+
+      // A API retorna 'prestadorId'; o mock usa 'id' como fallback
+      const prestadorId = prestadorSelecionado.prestadorId || prestadorSelecionado.id;
+      const servicoId   = prestadorSelecionado.servicoId   || null;
+
+      try {
+        await SolicitacaoAPI.criar({
+          prestadorId,
+          servicoId,
+          descricao: document.getElementById('sol-descricao').value,
+          dataHoraAgendada: `${data}T${horario}:00`,
+          endereco: document.getElementById('sol-endereco').value
+        });
+        UI.modal.close('modal-solicitar');
+        UI.toast('✅ Solicitação enviada! Aguarde a confirmação do prestador.', 'success');
+      } catch (err) {
+        // Mostra o erro real — não simula sucesso
+        errEl.textContent = err.message || 'Erro ao enviar solicitação. Tente novamente.';
+        errEl.classList.add('show');
+      } finally {
+        btn.disabled = false; btn.innerHTML = 'Confirmar Solicitação';
+      }
+    }
+  </script>
+</body>
+</html>

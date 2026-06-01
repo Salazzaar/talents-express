@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chamados | Talents Express</title>
+  <meta name="description" content="Gerencie seus chamados e solicitações como prestador de serviços.">
+  <link rel="stylesheet" href="../css/global.css">
+  <style>
+    .chamado-card { background:var(--gradient-card); border:1px solid var(--border); border-radius:var(--radius); padding:1.5rem; transition:var(--transition); }
+    .chamado-card:hover { border-color:rgba(108,61,232,0.4); }
+    .chamado-header { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; margin-bottom:1rem; }
+    .chamado-cliente { display:flex; align-items:center; gap:0.75rem; }
+    .chamado-meta { display:flex; flex-wrap:wrap; gap:0.5rem; margin-bottom:1rem; }
+    .chamado-desc { color:var(--text-secondary); font-size:0.875rem; line-height:1.6; margin-bottom:1rem; padding:0.75rem; background:rgba(255,255,255,0.03); border-radius:8px; border-left:3px solid var(--primary); }
+    .chamado-footer { display:flex; align-items:center; justify-content:space-between; border-top:1px solid var(--border); padding-top:1rem; }
+    .chamado-actions { display:flex; gap:0.5rem; }
+    .rn03-warn { font-size:0.75rem; color:var(--warning); margin-top:0.35rem; }
+    .filter-tabs { display:flex; gap:0.5rem; margin-bottom:1.5rem; flex-wrap:wrap; }
+    .filter-tab { padding:0.5rem 1rem; border-radius:50px; border:1.5px solid var(--border); background:transparent; color:var(--text-secondary); font-size:0.85rem; font-weight:600; cursor:pointer; transition:var(--transition); }
+    .filter-tab.active { background:var(--primary); border-color:var(--primary); color:white; }
+    .countdown { font-size:0.78rem; font-weight:700; padding:0.2rem 0.6rem; border-radius:50px; }
+    .countdown.urgent { background:rgba(239,68,68,0.2); color:#F87171; }
+    .countdown.ok { background:rgba(16,185,129,0.2); color:#34D399; }
+    .concurrency-lock { font-size:0.75rem; color:var(--text-muted); font-style:italic; }
+  </style>
+</head>
+<body>
+  <nav class="navbar" id="main-nav"></nav>
+  <div class="container page-content">
+    <div class="page-header">
+      <h1>📋 Chamados Recebidos</h1>
+      <p>Visualize e responda as solicitações dos clientes</p>
+    </div>
+
+    <div class="filter-tabs">
+      <button class="filter-tab active" onclick="filtrar('TODOS', this)">Todos</button>
+      <button class="filter-tab" onclick="filtrar('PENDENTE', this)">⏳ Pendentes</button>
+      <button class="filter-tab" onclick="filtrar('ACEITO', this)">✅ Aceitos</button>
+      <button class="filter-tab" onclick="filtrar('CONCLUIDO', this)">🏆 Concluídos</button>
+      <button class="filter-tab" onclick="filtrar('RECUSADO', this)">❌ Recusados</button>
+    </div>
+
+    <div id="chamados-list" class="grid-auto"></div>
+    <div class="empty-state" id="empty-state" style="display:none">
+      <div class="icon">📭</div>
+      <h3>Nenhum chamado encontrado</h3>
+      <p>Aguarde novas solicitações dos clientes.</p>
+    </div>
+  </div>
+
+  <!-- MODAL CONCLUIR -->
+  <div class="modal-overlay" id="modal-concluir">
+    <div class="modal" style="max-width:420px">
+      <div class="modal-header">
+        <h3>🏁 Concluir Atendimento</h3>
+        <button class="modal-close" onclick="UI.modal.close('modal-concluir')">✕</button>
+      </div>
+      <p style="color:var(--text-secondary);font-size:0.9rem;margin-bottom:1.5rem">Confirma que o serviço foi executado e entregue ao cliente?</p>
+      <div style="display:flex;gap:0.75rem">
+        <button class="btn btn-success" style="flex:1" onclick="executarConclusao()">✅ Confirmar Conclusão</button>
+        <button class="btn btn-outline" onclick="UI.modal.close('modal-concluir')">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/api.js"></script>
+  <script>
+    let solicitacoes = [];
+    let filtroAtual = 'TODOS';
+    let chamadoParaConcluir = null;
+
+    // RF07: lock de concorrência (simula mutex por solicitação)
+    const lockSet = new Set();
+
+    document.addEventListener('DOMContentLoaded', () => {
+      Auth.requireLogin('login.html');
+      if (Auth.isCliente()) { window.location.href = 'dashboard-cliente.html'; return; }
+      UI.renderNavbar('atendimentos.html');
+      carregarChamados();
+    });
+
+    async function carregarChamados() {
+      try {
+        const raw = await SolicitacaoAPI.listarPrestador();
+        // Normaliza a resposta da API (campos do Java) para o formato do template
+        solicitacoes = raw.map(normalizeSolicitacao);
+      } catch {
+        solicitacoes = [...MOCK.solicitacoes,
+          { id: 3, cliente: 'Paulo Souza', servico: 'Troca de disjuntor', categoria: 'Braçal', dataHora: '2026-05-19T10:00:00', local: 'Rua Anhanguera, 200 - Tamboré', status: 'ACEITO', valor: 140 },
+          { id: 4, cliente: 'Carla Mendes', servico: 'Revisão instalação', categoria: 'Braçal', dataHora: '2026-05-15T14:00:00', local: 'Av. Senador, 50 - Barueri', status: 'CONCLUIDO', valor: 110 },
+        ];
+      }
+      renderChamados();
+    }
+
+    /**
+     * Normaliza um objeto Solicitacao vindo da API para o formato esperado pelo template.
+     * A API retorna objetos aninhados (cliente.nome, dataHoraAgendada, endereco)
+     * enquanto o mock usa campos simples (cliente string, dataHora, local).
+     */
+    function normalizeSolicitacao(s) {
+      return {
+        id:       s.id,
+        status:   s.status,
+        // cliente pode vir como objeto {id, nome, ...} ou como string (mock)
+        cliente:  typeof s.cliente === 'object' ? (s.cliente?.nome || '?') : (s.cliente || '?'),
+        // servico pode vir do objeto servico aninhado ou direto
+        servico:  s.servico?.titulo || s.servico || s.descricao || 'Serviço solicitado',
+        // dataHora: API usa dataHoraAgendada, mock usa dataHora
+        dataHora: s.dataHoraAgendada || s.dataHora,
+        // local: API usa endereco, mock usa local
+        local:    s.endereco || s.local || '',
+        // valor: pode vir da API ou do mock
+        valor:    s.valor || 0,
+      };
+    }
+
+    function filtrar(status, btn) {
+      filtroAtual = status;
+      document.querySelectorAll('.filter-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderChamados();
+    }
+
+    function renderChamados() {
+      const dados = filtroAtual === 'TODOS' ? solicitacoes : solicitacoes.filter(s => s.status === filtroAtual);
+      const list = document.getElementById('chamados-list');
+      const empty = document.getElementById('empty-state');
+      if (dados.length === 0) { list.innerHTML = ''; empty.style.display = 'block'; return; }
+      empty.style.display = 'none';
+
+      list.innerHTML = dados.map(s => {
+        const horaAg = new Date(s.dataHora);
+        const agora = new Date();
+        const diffHoras = (horaAg - agora) / 3600000;
+        // RN03: cancelamento com 6h de antecedência
+        const podeCancelar = diffHoras >= 6;
+        const countdownClass = diffHoras < 6 ? 'urgent' : 'ok';
+        const countdownLabel = diffHoras > 0
+          ? `${Math.floor(diffHoras)}h ${Math.floor((diffHoras % 1) * 60)}m restantes`
+          : 'Horário passado';
+
+        const isPendente = s.status === 'PENDENTE';
+        const isAceito = s.status === 'ACEITO';
+        const isLocked = lockSet.has(s.id);
+
+        return `
+        <div class="chamado-card">
+          <div class="chamado-header">
+            <div class="chamado-cliente">
+              <div class="avatar">${UI.initials(s.cliente)}</div>
+              <div>
+                <div style="font-weight:700">${s.cliente}</div>
+                <div style="font-size:0.82rem;color:var(--text-secondary)">${s.servico}</div>
+              </div>
+            </div>
+            ${UI.getStatusBadge(s.status)}
+          </div>
+          <div class="chamado-desc">${s.servico || 'Serviço solicitado'}</div>
+          <div class="chamado-meta">
+            <span class="badge badge-primary">📅 ${UI.formatDateTime(s.dataHora)}</span>
+            <span class="badge badge-primary">📍 ${s.local}</span>
+            <span class="badge badge-success">💰 R$ ${s.valor}</span>
+            ${isPendente || isAceito ? `<span class="countdown ${countdownClass}">⏱ ${countdownLabel}</span>` : ''}
+          </div>
+          ${isLocked ? `<p class="concurrency-lock">🔒 RF07: Aguardando confirmação de bloqueio de agenda...</p>` : ''}
+          <div class="chamado-footer">
+            <div style="font-size:0.78rem;color:var(--text-muted)">
+              #${s.id} · ${UI.formatDate(s.dataHora)}
+            </div>
+            <div class="chamado-actions">
+              ${isPendente ? `
+                <button class="btn btn-success btn-sm" onclick="aceitarChamado(${s.id})" ${isLocked ? 'disabled' : ''}>✅ Aceitar</button>
+                <button class="btn btn-danger btn-sm" onclick="recusarChamado(${s.id})">❌ Recusar</button>
+              ` : ''}
+              ${isAceito ? `
+                <button class="btn btn-primary btn-sm" onclick="pedirConclusao(${s.id})">🏁 Concluir</button>
+                ${podeCancelar
+                  ? `<button class="btn btn-outline btn-sm" onclick="cancelarChamado(${s.id})">Cancelar</button>`
+                  : `<button class="btn btn-outline btn-sm" disabled title="RN03: cancelamento não permitido com menos de 6h">Cancelar</button>`}
+              ` : ''}
+            </div>
+          </div>
+          ${isAceito && !podeCancelar ? `<p class="rn03-warn">⚠️ RN03: Cancelamento bloqueado — menos de 6h para o atendimento.</p>` : ''}
+        </div>`;
+      }).join('');
+    }
+
+    async function aceitarChamado(id) {
+      // RF07: travar concorrência — bloqueia botão imediatamente
+      if (lockSet.has(id)) { UI.toast('RF07: Esta solicitação já está sendo processada.', 'warning'); return; }
+      lockSet.add(id);
+      renderChamados(); // mostra lock visual
+      try {
+        await SolicitacaoAPI.aceitar(id);
+        const s = solicitacoes.find(s => s.id === id);
+        if (s) s.status = 'ACEITO';
+        UI.toast('✅ Chamado aceito! Agenda bloqueada.', 'success');
+      } catch {
+        // Mock
+        const s = solicitacoes.find(s => s.id === id);
+        if (s) s.status = 'ACEITO';
+        UI.toast('✅ Chamado aceito! (demo)', 'success');
+      } finally {
+        lockSet.delete(id);
+        renderChamados();
+      }
+    }
+
+    async function recusarChamado(id) {
+      try { await SolicitacaoAPI.recusar(id); } catch {}
+      const s = solicitacoes.find(s => s.id === id);
+      if (s) s.status = 'RECUSADO';
+      renderChamados();
+      UI.toast('Chamado recusado.', 'warning');
+    }
+
+    async function cancelarChamado(id) {
+      const s = solicitacoes.find(s => s.id === id);
+      const diffHoras = (new Date(s.dataHora) - new Date()) / 3600000;
+      if (diffHoras < 6) { UI.toast('RN03: Cancelamento não permitido com menos de 6h de antecedência.', 'error'); return; }
+      try { await SolicitacaoAPI.cancelar(id); } catch {}
+      s.status = 'CANCELADO';
+      renderChamados();
+      UI.toast('Chamado cancelado sem penalidades.', 'info');
+    }
+
+    function pedirConclusao(id) { chamadoParaConcluir = id; UI.modal.open('modal-concluir'); }
+
+    async function executarConclusao() {
+      try { await SolicitacaoAPI.concluir(chamadoParaConcluir); } catch {}
+      const s = solicitacoes.find(s => s.id === chamadoParaConcluir);
+      if (s) s.status = 'CONCLUIDO';
+      UI.modal.close('modal-concluir');
+      renderChamados();
+      UI.toast('🏆 Serviço concluído!', 'success');
+    }
+  </script>
+</body>
+</html>

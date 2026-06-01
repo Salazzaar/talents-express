@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Painel Prestador | Talents Express</title>
+  <link rel="stylesheet" href="../css/global.css">
+  <style>
+    .hero-welcome { background:var(--gradient-card); border:1px solid var(--border); border-radius:var(--radius-lg); padding:2rem; margin-bottom:2rem; display:flex; align-items:center; gap:1.5rem; position:relative; overflow:hidden; }
+    .hero-welcome::after { content:'🔧'; position:absolute; right:2rem; bottom:-1rem; font-size:6rem; opacity:0.06; }
+    .welcome-text h2 { font-family:'Outfit',sans-serif; font-size:1.6rem; font-weight:800; margin-bottom:0.25rem; }
+    .welcome-text p { color:var(--text-secondary); }
+    .rn02-alert { border-radius:var(--radius-sm); padding:1rem 1.25rem; margin-bottom:1.5rem; display:flex; align-items:center; gap:0.75rem; font-size:0.875rem; }
+    .rn02-alert.warn { background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.3); color:#FBBF24; }
+    .rn02-alert.ok   { background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.3); color:#34D399; }
+    .quick-nav { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:1rem; margin-bottom:2rem; }
+    .qn-item { background:var(--gradient-card); border:1px solid var(--border); border-radius:var(--radius); padding:1.25rem; text-align:center; text-decoration:none; transition:var(--transition); display:block; }
+    .qn-item:hover { border-color:var(--primary); transform:translateY(-4px); box-shadow:var(--shadow-glow); }
+    .qn-icon { font-size:2rem; margin-bottom:0.5rem; }
+    .qn-label { font-weight:700; font-size:0.9rem; color:var(--text-primary); }
+    .qn-cnt { font-size:1.4rem; font-weight:800; font-family:'Outfit',sans-serif; color:var(--primary-light); }
+    .pending-item { display:flex; align-items:center; gap:1rem; padding:1rem; background:var(--bg-card2); border-radius:var(--radius-sm); border:1px solid var(--border); transition:var(--transition); }
+    .pending-item:hover { border-color:rgba(108,61,232,0.4); }
+    .pending-info { flex:1; }
+    .pending-name { font-weight:600; font-size:0.925rem; }
+    .pending-meta { font-size:0.78rem; color:var(--text-muted); }
+    .pending-actions { display:flex; gap:0.5rem; }
+  </style>
+</head>
+<body>
+  <nav class="navbar" id="main-nav"></nav>
+  <div class="container page-content">
+
+    <div class="hero-welcome">
+      <div class="avatar avatar-lg" id="dash-avatar">PR</div>
+      <div class="welcome-text">
+        <h2>Bem-vindo, <span id="dash-nome">Prestador</span>! 🔧</h2>
+        <p>Gerencie seus serviços e atenda seus clientes.</p>
+      </div>
+    </div>
+
+    <!-- RN02 -->
+    <div class="rn02-alert warn" id="rn02-dash">
+      <span>⚠️</span>
+      <span id="rn02-msg">Complete seu perfil e ative ao menos 1 serviço para aparecer nas buscas.</span>
+      <a href="portfolio.html" style="margin-left:auto" class="btn btn-outline btn-sm">Gerenciar</a>
+    </div>
+
+    <!-- STATS -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:1rem;margin-bottom:2rem">
+      <div class="stat-card">
+        <div class="stat-icon" style="background:rgba(245,158,11,0.2)">⏳</div>
+        <div class="stat-info"><h3 id="stat-pendentes">0</h3><p>Pendentes</p></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background:rgba(16,185,129,0.2)">✅</div>
+        <div class="stat-info"><h3 id="stat-concluidos">0</h3><p>Concluídos</p></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background:rgba(255,107,53,0.2)">💰</div>
+        <div class="stat-info"><h3 id="stat-ganhos">R$0</h3><p>Ganhos</p></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background:rgba(251,191,36,0.2)">⭐</div>
+        <div class="stat-info"><h3 id="stat-nota">—</h3><p>Avaliação</p></div>
+      </div>
+    </div>
+
+    <!-- QUICK NAV -->
+    <div class="quick-nav">
+      <a href="portfolio.html" class="qn-item">
+        <div class="qn-icon">🛠️</div>
+        <div class="qn-label">Meus Serviços</div>
+        <div class="qn-cnt" id="nav-servicos">0</div>
+      </a>
+      <a href="atendimentos.html" class="qn-item">
+        <div class="qn-icon">📋</div>
+        <div class="qn-label">Chamados</div>
+        <div class="qn-cnt" id="nav-chamados">0</div>
+      </a>
+    </div>
+
+    <!-- CHAMADOS PENDENTES -->
+    <div>
+      <h3 style="font-family:'Outfit',sans-serif;font-size:1.1rem;font-weight:700;margin-bottom:1rem">⏳ Chamados Pendentes</h3>
+      <div id="pending-list"></div>
+    </div>
+  </div>
+
+  <script src="../js/api.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      Auth.requireLogin('login.html');
+      const user = Auth.get();
+      if (user?.perfil === 'CLIENTE') { window.location.href = 'dashboard-cliente.html'; return; }
+      UI.renderNavbar('dashboard-prestador.html');
+      document.getElementById('dash-nome').textContent = user?.nome?.split(' ')[0] || 'Prestador';
+      document.getElementById('dash-avatar').textContent = UI.initials(user?.nome || 'PR');
+
+      let solicitacoes = [], servicos = [];
+      try {
+        const raw = await SolicitacaoAPI.listarPrestador();
+        // Normaliza campos da API (dataHoraAgendada→dataHora, endereco→local, cliente obj→string)
+        solicitacoes = raw.map(s => ({
+          id:       s.id,
+          status:   s.status,
+          cliente:  typeof s.cliente === 'object' ? (s.cliente?.nome || '?') : (s.cliente || '?'),
+          servico:  s.servico?.titulo || s.servico || s.descricao || 'Serviço solicitado',
+          dataHora: s.dataHoraAgendada || s.dataHora,
+          local:    s.endereco || s.local || '',
+          valor:    s.valor || 0,
+        }));
+      } catch { solicitacoes = [...MOCK.solicitacoes]; }
+      try { servicos = await ServicoAPI.meus(); } catch { servicos = [{ativo:true}]; }
+
+      const ativos = servicos.filter(s => s.ativo).length;
+      const pendentes = solicitacoes.filter(s => s.status === 'PENDENTE');
+      const concluidos = solicitacoes.filter(s => s.status === 'CONCLUIDO');
+      const ganhos = concluidos.reduce((a, s) => a + (s.valor || 0), 0);
+
+      document.getElementById('stat-pendentes').textContent  = pendentes.length;
+      document.getElementById('stat-concluidos').textContent = concluidos.length;
+      document.getElementById('stat-ganhos').textContent     = `R$${ganhos}`;
+      document.getElementById('stat-nota').textContent       = '4.8';
+      document.getElementById('nav-servicos').textContent    = servicos.length;
+      document.getElementById('nav-chamados').textContent    = solicitacoes.length;
+
+      // RN02
+      const rn02 = document.getElementById('rn02-dash');
+      if (ativos > 0) {
+        rn02.className = 'rn02-alert ok';
+        document.getElementById('rn02-msg').textContent = `✅ Perfil visível nas buscas — ${ativos} serviço(s) ativo(s).`;
+      }
+
+      const list = document.getElementById('pending-list');
+      list.innerHTML = pendentes.length === 0
+        ? '<p style="color:var(--text-muted);padding:1rem">Nenhum chamado pendente no momento.</p>'
+        : pendentes.map(s => `
+          <div class="pending-item" style="margin-bottom:0.75rem">
+            <div class="avatar">${UI.initials(s.cliente)}</div>
+            <div class="pending-info">
+              <div class="pending-name">${s.servico || s.cliente}</div>
+              <div class="pending-meta">📅 ${UI.formatDateTime(s.dataHora)} · 📍 ${s.local}</div>
+            </div>
+            <div class="pending-actions">
+              <span class="badge badge-warning">R$ ${s.valor}</span>
+              <a href="atendimentos.html" class="btn btn-primary btn-sm">Ver</a>
+            </div>
+          </div>`).join('');
+    });
+  </script>
+</body>
+</html>

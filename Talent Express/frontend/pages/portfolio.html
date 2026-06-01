@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meus Serviços | Talents Express</title>
+  <meta name="description" content="Gerencie seu portfólio de serviços na plataforma Talents Express.">
+  <link rel="stylesheet" href="../css/global.css">
+  <style>
+    .portfolio-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:2rem; }
+    .rn02-banner {
+      background: rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.3);
+      border-radius:var(--radius-sm); padding:1rem 1.25rem;
+      display:flex; align-items:center; gap:0.75rem;
+      margin-bottom:1.5rem; color:#FBBF24; font-size:0.875rem;
+    }
+    .rn02-banner.ok { background:rgba(16,185,129,0.1); border-color:rgba(16,185,129,0.3); color:#34D399; }
+    .service-card { background:var(--gradient-card); border:1px solid var(--border); border-radius:var(--radius); padding:1.5rem; transition:var(--transition); }
+    .service-card:hover { border-color:rgba(108,61,232,0.4); box-shadow:var(--shadow-card); }
+    .service-card-header { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:1rem; }
+    .service-title { font-weight:700; font-size:1.05rem; margin-bottom:0.25rem; }
+    .service-actions { display:flex; gap:0.5rem; flex-shrink:0; }
+    .service-body { color:var(--text-secondary); font-size:0.875rem; line-height:1.6; margin-bottom:1rem; }
+    .service-footer { display:flex; align-items:center; justify-content:space-between; border-top:1px solid var(--border); padding-top:1rem; }
+    .toggle-active { position:relative; display:inline-block; width:44px; height:24px; cursor:pointer; }
+    .toggle-active input { opacity:0; width:0; height:0; }
+    .toggle-slider {
+      position:absolute; inset:0; background:var(--bg-card2); border:1px solid var(--border);
+      border-radius:50px; transition:var(--transition);
+    }
+    .toggle-slider::before {
+      content:''; position:absolute; width:18px; height:18px; left:2px; bottom:2px;
+      background:var(--text-muted); border-radius:50%; transition:var(--transition);
+    }
+    .toggle-active input:checked + .toggle-slider { background:var(--success); border-color:var(--success); }
+    .toggle-active input:checked + .toggle-slider::before { transform:translateX(20px); background:white; }
+    .agenda-chips { display:flex; flex-wrap:wrap; gap:0.4rem; }
+    .agenda-chip {
+      padding:0.25rem 0.6rem; border-radius:50px; font-size:0.75rem; font-weight:600;
+      background:rgba(108,61,232,0.15); color:var(--primary-light); border:1px solid rgba(108,61,232,0.3);
+    }
+    .empty-portfolio { text-align:center; padding:4rem 2rem; }
+    .empty-portfolio .icon { font-size:3rem; margin-bottom:1rem; }
+  </style>
+</head>
+<body>
+  <nav class="navbar" id="main-nav"></nav>
+  <div class="container page-content">
+    <div class="portfolio-header">
+      <div class="page-header" style="margin:0">
+        <h1>🛠️ Meu Portfólio</h1>
+        <p>Cadastre e gerencie seus serviços oferecidos</p>
+      </div>
+      <button class="btn btn-primary" onclick="abrirModal()">➕ Novo Serviço</button>
+    </div>
+
+    <!-- RN02 Banner -->
+    <div class="rn02-banner" id="rn02-banner">
+      <span>⚠️</span>
+      <span id="rn02-texto">Você precisa ter pelo menos um serviço ativo para aparecer nas buscas.</span>
+    </div>
+
+    <div class="grid-auto" id="services-grid">
+      <div class="service-card skeleton" style="height:220px"></div>
+      <div class="service-card skeleton" style="height:220px"></div>
+    </div>
+    <div class="empty-portfolio" id="empty-state" style="display:none">
+      <div class="icon">📦</div>
+      <h3 style="color:var(--text-secondary);margin-bottom:0.5rem">Nenhum serviço cadastrado</h3>
+      <p style="color:var(--text-muted);margin-bottom:1.5rem">Adicione seus serviços para começar a receber chamados.</p>
+      <button class="btn btn-primary" onclick="abrirModal()">Adicionar Primeiro Serviço</button>
+    </div>
+  </div>
+
+  <!-- MODAL CRIAR/EDITAR -->
+  <div class="modal-overlay" id="modal-servico">
+    <div class="modal" style="max-width:580px">
+      <div class="modal-header">
+        <h3 id="modal-title">✨ Novo Serviço</h3>
+        <button class="modal-close" onclick="fecharModal()">✕</button>
+      </div>
+      <div class="alert alert-danger" id="modal-error"></div>
+      <form id="form-servico" onsubmit="salvarServico(event)">
+        <input type="hidden" id="edit-id">
+        <div class="form-group">
+          <label class="form-label">Título do Serviço</label>
+          <input class="form-control" id="svc-titulo" type="text" placeholder="Ex: Instalação Elétrica Residencial" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Descrição</label>
+          <textarea class="form-control" id="svc-descricao" rows="3" placeholder="Descreva detalhadamente seu serviço..." required></textarea>
+        </div>
+        <div class="grid-2">
+          <div class="form-group">
+            <label class="form-label">Categoria</label>
+            <select class="form-control" id="svc-categoria" required>
+              <option value="">Selecione</option>
+              <option value="Braçal">💪 Braçal</option>
+              <option value="Intelectual">🧠 Intelectual</option>
+              <option value="Artístico">🎨 Artístico</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Preço por hora (R$)</label>
+            <input class="form-control" id="svc-preco" type="number" min="1" step="0.01" placeholder="0,00" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Disponibilidade (dias da semana)</label>
+          <div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.5rem" id="dias-container">
+            {['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'].map(d =>
+              `<label style="cursor:pointer;display:flex;align-items:center;gap:0.4rem;padding:0.4rem 0.75rem;border-radius:8px;border:1.5px solid var(--border);font-size:0.85rem;transition:var(--transition)">
+                <input type="checkbox" value="${d}" class="dia-check" style="accent-color:var(--primary)">${d}
+              </label>`).join('')}
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="form-group">
+            <label class="form-label">Horário início</label>
+            <input class="form-control" id="svc-hora-inicio" type="time" value="08:00">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Horário fim</label>
+            <input class="form-control" id="svc-hora-fim" type="time" value="18:00">
+          </div>
+        </div>
+        <div style="display:flex;gap:0.75rem;margin-top:0.5rem">
+          <button class="btn btn-primary" type="submit" id="btn-salvar" style="flex:1">Salvar Serviço</button>
+          <button class="btn btn-outline" type="button" onclick="fecharModal()">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL CONFIRMAR EXCLUSÃO -->
+  <div class="modal-overlay" id="modal-delete">
+    <div class="modal" style="max-width:420px;text-align:center">
+      <div style="font-size:3rem;margin-bottom:1rem">🗑️</div>
+      <h3 style="font-family:'Outfit',sans-serif;margin-bottom:0.5rem">Excluir Serviço?</h3>
+      <p style="color:var(--text-secondary);margin-bottom:1.5rem;font-size:0.9rem">Esta ação não pode ser desfeita. O serviço será removido permanentemente.</p>
+      <div style="display:flex;gap:0.75rem;justify-content:center">
+        <button class="btn btn-danger" id="btn-confirm-delete" onclick="confirmarExclusao()">Excluir</button>
+        <button class="btn btn-outline" onclick="UI.modal.close('modal-delete')">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/api.js"></script>
+  <script>
+    let servicoParaExcluir = null;
+    let servicos = [];
+
+    document.addEventListener('DOMContentLoaded', () => {
+      Auth.requireLogin('login.html');
+      if (Auth.isCliente()) { window.location.href = 'dashboard-cliente.html'; return; }
+      UI.renderNavbar('portfolio.html');
+      renderDias();
+      carregarServicos();
+    });
+
+    function renderDias() {
+      const dias = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
+      document.getElementById('dias-container').innerHTML = dias.map(d => `
+        <label style="cursor:pointer;display:flex;align-items:center;gap:0.4rem;padding:0.4rem 0.75rem;border-radius:8px;border:1.5px solid var(--border);font-size:0.85rem;transition:all 0.2s;user-select:none" class="dia-label">
+          <input type="checkbox" value="${d}" class="dia-check" style="accent-color:var(--primary)">${d}
+        </label>`).join('');
+      document.querySelectorAll('.dia-check').forEach(c => {
+        c.addEventListener('change', e => {
+          e.target.closest('label').style.borderColor = e.target.checked ? 'var(--primary)' : 'var(--border)';
+          e.target.closest('label').style.background = e.target.checked ? 'rgba(108,61,232,0.15)' : '';
+        });
+      });
+    }
+
+    async function carregarServicos() {
+      try {
+        servicos = await ServicoAPI.meus();
+      } catch {
+        servicos = [
+          { id: 1, titulo: 'Instalação Elétrica', descricao: 'Instalações residenciais e comerciais.', categoria: 'Braçal', preco: 120, ativo: true, diasDisponiveis: ['Seg','Ter','Qua','Qui','Sex'], horaInicio: '08:00', horaFim: '18:00' },
+          { id: 2, titulo: 'Manutenção Preventiva', descricao: 'Revisão e manutenção de quadros elétricos.', categoria: 'Braçal', preco: 90, ativo: false, diasDisponiveis: ['Sáb'], horaInicio: '09:00', horaFim: '14:00' },
+        ];
+      }
+      renderServicos();
+    }
+
+    function renderServicos() {
+      const grid = document.getElementById('services-grid');
+      const empty = document.getElementById('empty-state');
+      const ativos = servicos.filter(s => s.ativo).length;
+
+      // RN02: alerta de visibilidade
+      const banner = document.getElementById('rn02-banner');
+      if (ativos > 0) {
+        banner.className = 'rn02-banner ok';
+        document.getElementById('rn02-texto').textContent = `✅ Seu perfil está visível nas buscas (${ativos} serviço(s) ativo(s)).`;
+      } else {
+        banner.className = 'rn02-banner';
+        document.getElementById('rn02-texto').textContent = '⚠️ RN02: Você precisa ter pelo menos 1 serviço ativo para aparecer nas buscas.';
+      }
+
+      if (servicos.length === 0) { grid.innerHTML = ''; empty.style.display = 'block'; return; }
+      empty.style.display = 'none';
+      const catClass = { 'Braçal': 'braçal', 'Intelectual': 'intelectual', 'Artístico': 'artístico' };
+
+      grid.innerHTML = servicos.map(s => `
+        <div class="service-card">
+          <div class="service-card-header">
+            <div>
+              <div class="service-title">${s.titulo}</div>
+              <span class="badge badge-${catClass[s.categoria] || 'primary'}">${s.categoria}</span>
+            </div>
+            <div class="service-actions">
+              <button class="btn btn-outline btn-sm" onclick='editarServico(${JSON.stringify(s).replace(/'/g,"&#39;")})'>✏️</button>
+              <button class="btn btn-danger btn-sm" onclick="pedirExclusao(${s.id})">🗑️</button>
+            </div>
+          </div>
+          <div class="service-body">${s.descricao}</div>
+          <div class="agenda-chips" style="margin-bottom:0.75rem">
+            ${(s.diasDisponiveis || []).map(d => `<span class="agenda-chip">${d}</span>`).join('')}
+            ${s.horaInicio ? `<span class="agenda-chip">⏰ ${s.horaInicio}–${s.horaFim}</span>` : ''}
+          </div>
+          <div class="service-footer">
+            <div class="price">R$ ${s.preco}<small>/h</small></div>
+            <div style="display:flex;align-items:center;gap:0.75rem">
+              <span style="font-size:0.82rem;color:var(--text-secondary)">${s.ativo ? '🟢 Ativo' : '⚫ Inativo'}</span>
+              <label class="toggle-active">
+                <input type="checkbox" ${s.ativo ? 'checked' : ''} onchange="toggleAtivo(${s.id}, this.checked)">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+        </div>`).join('');
+    }
+
+    function abrirModal(dados = null) {
+      document.getElementById('modal-title').textContent = dados ? '✏️ Editar Serviço' : '✨ Novo Serviço';
+      document.getElementById('edit-id').value = dados?.id || '';
+      document.getElementById('svc-titulo').value = dados?.titulo || '';
+      document.getElementById('svc-descricao').value = dados?.descricao || '';
+      document.getElementById('svc-categoria').value = dados?.categoria || '';
+      document.getElementById('svc-preco').value = dados?.preco || '';
+      document.getElementById('svc-hora-inicio').value = dados?.horaInicio || '08:00';
+      document.getElementById('svc-hora-fim').value = dados?.horaFim || '18:00';
+      document.getElementById('modal-error').classList.remove('show');
+      renderDias();
+      if (dados?.diasDisponiveis) {
+        setTimeout(() => {
+          document.querySelectorAll('.dia-check').forEach(c => {
+            if (dados.diasDisponiveis.includes(c.value)) {
+              c.checked = true;
+              c.closest('label').style.borderColor = 'var(--primary)';
+              c.closest('label').style.background = 'rgba(108,61,232,0.15)';
+            }
+          });
+        }, 50);
+      }
+      UI.modal.open('modal-servico');
+    }
+
+    function editarServico(s) { abrirModal(s); }
+    function fecharModal() { UI.modal.close('modal-servico'); }
+
+    async function salvarServico(e) {
+      e.preventDefault();
+      const dias = [...document.querySelectorAll('.dia-check:checked')].map(c => c.value);
+      const payload = {
+        titulo: document.getElementById('svc-titulo').value,
+        descricao: document.getElementById('svc-descricao').value,
+        categoria: document.getElementById('svc-categoria').value,
+        preco: parseFloat(document.getElementById('svc-preco').value),
+        diasDisponiveis: dias,
+        horaInicio: document.getElementById('svc-hora-inicio').value,
+        horaFim: document.getElementById('svc-hora-fim').value,
+        ativo: true
+      };
+      const id = document.getElementById('edit-id').value;
+      const btn = document.getElementById('btn-salvar');
+      btn.disabled = true; btn.innerHTML = '<div class="spinner"></div>';
+      try {
+        if (id) {
+          await ServicoAPI.atualizar(id, payload);
+          const idx = servicos.findIndex(s => s.id == id);
+          if (idx >= 0) servicos[idx] = { ...servicos[idx], ...payload };
+        } else {
+          const novo = await ServicoAPI.criar(payload).catch(() => ({ ...payload, id: Date.now() }));
+          servicos.push(novo);
+        }
+        fecharModal();
+        renderServicos();
+        UI.toast(id ? 'Serviço atualizado!' : 'Serviço criado!', 'success');
+      } catch (err) {
+        document.getElementById('modal-error').textContent = err.message;
+        document.getElementById('modal-error').classList.add('show');
+      } finally {
+        btn.disabled = false; btn.innerHTML = 'Salvar Serviço';
+      }
+    }
+
+    function pedirExclusao(id) { servicoParaExcluir = id; UI.modal.open('modal-delete'); }
+
+    async function confirmarExclusao() {
+      try {
+        await ServicoAPI.excluir(servicoParaExcluir);
+      } catch {}
+      servicos = servicos.filter(s => s.id !== servicoParaExcluir);
+      UI.modal.close('modal-delete');
+      renderServicos();
+      UI.toast('Serviço excluído.', 'info');
+    }
+
+    async function toggleAtivo(id, ativo) {
+      try {
+        await ServicoAPI.atualizar(id, { ativo });
+      } catch {}
+      const s = servicos.find(s => s.id === id);
+      if (s) s.ativo = ativo;
+      const ativos = servicos.filter(s => s.ativo).length;
+      const banner = document.getElementById('rn02-banner');
+      if (ativos > 0) {
+        banner.className = 'rn02-banner ok';
+        document.getElementById('rn02-texto').textContent = `✅ Perfil visível nas buscas (${ativos} serviço(s) ativo(s)).`;
+      } else {
+        banner.className = 'rn02-banner';
+        document.getElementById('rn02-texto').textContent = '⚠️ RN02: Ative ao menos 1 serviço para aparecer nas buscas.';
+      }
+      UI.toast(ativo ? 'Serviço ativado.' : 'Serviço desativado.', ativo ? 'success' : 'warning');
+    }
+  </script>
+</body>
+</html>
