@@ -58,11 +58,11 @@
       </div>
       <div class="stat-card">
         <div class="stat-icon" style="background:rgba(255,107,53,0.2)">💰</div>
-        <div class="stat-info"><h3 id="stat-ganhos">R$0</h3><p>Ganhos</p></div>
+        <div class="stat-info"><h3 id="stat-ganhos" style="word-break: break-word; font-size: 1.25rem;">R$0</h3><p>Ganhos</p></div>
       </div>
       <div class="stat-card">
         <div class="stat-icon" style="background:rgba(251,191,36,0.2)">⭐</div>
-        <div class="stat-info"><h3 id="stat-nota">—</h3><p>Avaliação</p></div>
+        <div class="stat-info"><h3 id="stat-nota" style="word-break: break-word; font-size: 1.25rem;">—</h3><p>Avaliação</p></div>
       </div>
     </div>
 
@@ -117,11 +117,21 @@
       const pendentes = solicitacoes.filter(s => s.status === 'PENDENTE');
       const concluidos = solicitacoes.filter(s => s.status === 'CONCLUIDO');
       const ganhos = concluidos.reduce((a, s) => a + (s.valor || 0), 0);
+      
+      let nota = user?.avaliacaoMedia || user?.avaliacao || 0;
+      try {
+        const avaliacoes = await AvaliacaoAPI.buscar(user.id);
+        if (avaliacoes && avaliacoes.length > 0) {
+           nota = avaliacoes.reduce((acc, a) => acc + (a.nota || 0), 0) / avaliacoes.length;
+        }
+      } catch (e) {
+        console.warn('Não foi possível buscar avaliações, usando fallback.');
+      }
 
       document.getElementById('stat-pendentes').textContent  = pendentes.length;
       document.getElementById('stat-concluidos').textContent = concluidos.length;
-      document.getElementById('stat-ganhos').textContent     = `R$${ganhos}`;
-      document.getElementById('stat-nota').textContent       = '4.8';
+      document.getElementById('stat-ganhos').textContent     = UI.formatCurrency(ganhos);
+      document.getElementById('stat-nota').textContent       = nota ? nota.toFixed(1) : 'Sem avaliações';
       document.getElementById('nav-servicos').textContent    = servicos.length;
       document.getElementById('nav-chamados').textContent    = solicitacoes.length;
 
